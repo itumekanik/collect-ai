@@ -1,0 +1,26 @@
+name: yolo-data-collection
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - pip=22.0.4
+  - tk                     # For tkinter GUI framework used in collect.py
+  - numpy>=1.22.0          # Common dependency for image processing
+  - matplotlib>=3.5.0      # Helpful for visualization
+  - pip:
+    - pillow>=9.0.0        # For PIL (Python Imaging Library) used in collect.py
+    - pyautogui>=0.9.53    # For screen capture and automation in collect.py
+    - opencv-python>=4.5.5 # Useful for image processing
+    - tqdm>=4.62.0         # For progress bars in processing scripts
+    
+# Note: The following modules are part of the Python standard library
+# and don't need to be installed separately:
+# - shutil, glob, re, os, random, math, time, datetime
+
+# Optionally, if you want to run YOLO for inference after data collection:
+# - pip:
+#   - ultralytics>=8.0.0  # For running YOLO models
+  
+variables:
+  PYTHONPATH: $CONDA_PREFIX
