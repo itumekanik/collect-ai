@@ -32,7 +32,36 @@ This toolkit provides a complete workflow for:
    conda activate yolo-data-collection
    ```
 
-## Usage Guide
+## Annotation Editor (`edit.py`)
+
+The Annotation Editor provides a graphical interface for viewing and editing YOLO format annotations.
+
+```bash
+python edit.py
+```
+
+### Key Features:
+- **Open and browse** existing datasets with forward/backward navigation
+- **View annotations** visualized on the images with colored bounding boxes
+- **Add new annotations** by drawing bounding boxes directly on the image
+- **Edit existing annotations** by dragging them or changing their class
+- **Delete annotations** that are incorrect or no longer needed
+- **Zoom and pan** for detailed work on high-resolution images
+- **Class management** with custom color coding and class mapping editing
+
+### Keyboard Shortcuts:
+- **Left/Right Arrow**: Navigate between images
+- **Delete**: Remove the selected annotation
+- **Ctrl+S**: Save annotations
+- **Ctrl+O**: Open a dataset folder
+- **Ctrl+N**: Start a new annotation
+- **Escape**: Cancel new annotation
+
+### Mouse Controls:
+- **Left-click and drag**: Draw or move annotations
+- **Right-click**: Open context menu for additional options
+- **Middle-click and drag**: Pan the image
+- **Mouse wheel**: Zoom in/out
 
 ### Screen Capture & Annotation Tool (`collect.py`)
 
