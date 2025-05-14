@@ -478,38 +478,38 @@ class YOLOAnnotationEditor:
         """Handle click on canvas"""
         if not hasattr(self, 'original_image'):
             return
-        
-        # Convert event coordinates to image coordinates, accounting for zoom and pan
+
+        # Convert event coords → image coords
         image_x = (event.x - self.pan_offset_x) / self.zoom_level
         image_y = (event.y - self.pan_offset_y) / self.zoom_level
-        
-        # Check if click is inside the image
-        if not (0 <= image_x < self.image_width and 0 <= image_y < self.image_height):
+
+        # Only start drawing new annotation if in new_annotation mode,
+        # regardless of whether you clicked inside an existing box.
+        if getattr(self, 'new_annotation_in_progress', False):
+            # Check click is inside image
+            if 0 <= image_x < self.image_width and 0 <= image_y < self.image_height:
+                self.new_annotation_start_x = image_x / self.image_width
+                self.new_annotation_start_y = image_y / self.image_height
+                self.dragging = True
             return
-        
-        # Check if click is on an existing annotation
+
+        # If not in new-annotation mode, see if you clicked an existing box
         clicked_annotation = self.find_annotation_at_point(image_x, image_y)
-        
         if clicked_annotation is not None:
-            # Select this annotation
+            # Select & start moving that annotation
             self.selected_annotation_index = clicked_annotation
             self.annotations_listbox.selection_clear(0, tk.END)
             self.annotations_listbox.selection_set(clicked_annotation)
             self.annotations_listbox.see(clicked_annotation)
-            
-            # Start dragging
+
             self.dragging = True
             self.drag_start_x = image_x
             self.drag_start_y = image_y
-            
-            # Update canvas to highlight selected annotation
             self.update_canvas()
         else:
-            # If in new annotation mode, start drawing a new annotation
-            if hasattr(self, 'new_annotation_in_progress') and self.new_annotation_in_progress:
-                self.new_annotation_start_x = image_x / self.image_width
-                self.new_annotation_start_y = image_y / self.image_height
-                self.dragging = True
+            # Not over an existing box → do nothing until user presses Add Annotation
+            return
+
     
     def on_canvas_drag(self, event):
         """Handle drag on canvas"""
@@ -639,13 +639,16 @@ class YOLOAnnotationEditor:
                             self.annotations_listbox.selection_set(self.selected_annotation_index)
                             self.annotations_listbox.see(self.selected_annotation_index)
                 
-                # Clean up
+                # Clean up preview rectangle
                 self.canvas.delete("preview")
                 self.preview_rect = None
-                self.new_annotation_in_progress = False
                 
+                # *** BURADAN self.new_annotation_in_progress = False satırı kaldırıldı ***
+                # Böylece yeni etiketleme modu kapanmıyor, üst üste çizmeye devam edebilirsiniz.
+
                 # Update canvas
                 self.update_canvas()
+
     
     def prompt_for_class(self):
         """Prompt user to select a class for the annotation"""
