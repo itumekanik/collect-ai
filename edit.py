@@ -108,11 +108,22 @@ class YOLOAnnotationEditor:
         self.nav_frame = tk.Frame(self.main_frame)
         self.nav_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
         
-        self.image_counter_label = tk.Label(self.nav_frame, text="Image: 0/0")
-        self.image_counter_label.pack(side=tk.LEFT, padx=5)
-        
+        # --- Değiştirilen sayaç alanı ---
+        tk.Label(self.nav_frame, text="Image:").pack(side=tk.LEFT, padx=(5,0))
+
+        self.image_index_var = tk.StringVar(value="0")
+        self.image_index_entry = tk.Entry(self.nav_frame, width=5, textvariable=self.image_index_var)
+        self.image_index_entry.pack(side=tk.LEFT)
+        self.total_images_label = tk.Label(self.nav_frame, text="/0")
+        self.total_images_label.pack(side=tk.LEFT, padx=(0,10))
+
+        # Enter tuşuna basıldığında atlama fonksiyonunu çağır
+        self.image_index_entry.bind("<Return>", self.on_image_index_enter)
+
+        # Yol bilgisini gösteren label (eski image_path_label burada devam eder)
         self.image_path_label = tk.Label(self.nav_frame, text="No image loaded")
         self.image_path_label.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+        
         
         # Zoom controls
         zoom_frame = tk.Frame(self.nav_frame)
@@ -262,7 +273,11 @@ class YOLOAnnotationEditor:
         
         # Update UI
         self.image_path_label.config(text=image_path)
-        self.image_counter_label.config(text=f"Image: {self.current_image_index+1}/{len(self.images_list)}")
+        total = len(self.images_list)
+        current = self.current_image_index + 1
+        self.image_index_var.set(str(current))
+        self.total_images_label.config(text=f"/{total}")
+
         
         # Load the image
         try:
@@ -1356,6 +1371,27 @@ class YOLOAnnotationEditor:
         self.pan_offset_x = 0
         self.pan_offset_y = 0
         self.update_canvas()
+
+    def on_image_index_enter(self, event):
+        """Entry’ye yazılan numaraya atla."""
+        val = self.image_index_var.get()
+        try:
+            idx = int(val) - 1
+        except ValueError:
+            messagebox.showwarning("Invalid Number", "Please enter a valid image number.")
+            self.image_index_var.set(str(self.current_image_index + 1))
+            return
+
+        if idx < 0 or idx >= len(self.images_list):
+            messagebox.showwarning("Out of Range", f"Enter a number between 1 and {len(self.images_list)}.")
+            self.image_index_var.set(str(self.current_image_index + 1))
+            return
+
+        # Mevcut annot’ları kaydet ve yeni resme atla
+        self.save_annotations()
+        self.current_image_index = idx
+        self.load_image(self.images_list[idx])
+
 
 def main():
     root = tk.Tk()
