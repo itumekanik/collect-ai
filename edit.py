@@ -910,34 +910,42 @@ class YOLOAnnotationEditor:
         self.status_bar.config(text="Annotation deleted")
     
     def save_annotations(self):
-        """Save annotations to the YOLO format file"""
+        """Save annotations only if there is at least one box."""
         if not self.current_label_path:
             messagebox.showinfo("No Label", "No label file path available")
             return
-        
+
+        # Eğer hiç annotation yoksa, varsa eski .txt'i sil, yoksa geç
+        if len(self.annotations) == 0:
+            if os.path.exists(self.current_label_path):
+                try:
+                    os.remove(self.current_label_path)
+                    self.status_bar.config(
+                        text=f"No annotations—removed empty file {os.path.basename(self.current_label_path)}"
+                    )
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to remove empty label file: {e}")
+            else:
+                self.status_bar.config(text="No annotations—nothing to save")
+            return
+
+        # Etiket varsa, varolan dosyayı (veya yeni klasörü) oluşturup yaz
         try:
-            # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(self.current_label_path), exist_ok=True)
-            
             with open(self.current_label_path, 'w') as f:
-                for annotation in self.annotations:
-                    class_id = annotation['class_id']
-                    x_center = annotation['x_center']
-                    y_center = annotation['y_center']
-                    width = annotation['width']
-                    height = annotation['height']
-                    
-                    # Ensure values are within range [0, 1]
-                    x_center = max(0, min(1, x_center))
-                    y_center = max(0, min(1, y_center))
-                    width = max(0, min(1, width))
-                    height = max(0, min(1, height))
-                    
-                    f.write(f"{class_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}\n")
-            
-            self.status_bar.config(text=f"Saved {len(self.annotations)} annotations to {os.path.basename(self.current_label_path)}")
+                for ann in self.annotations:
+                    cid = ann['class_id']
+                    xc  = max(0, min(1, ann['x_center']))
+                    yc  = max(0, min(1, ann['y_center']))
+                    w   = max(0, min(1, ann['width']))
+                    h   = max(0, min(1, ann['height']))
+                    f.write(f"{cid} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}\n")
+            self.status_bar.config(
+                text=f"Saved {len(self.annotations)} annotations to {os.path.basename(self.current_label_path)}"
+            )
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save annotations: {str(e)}")
+            messagebox.showerror("Error", f"Failed to save annotations: {e}")
+
     
     def prev_image(self):
         """Load the previous image in the list"""
