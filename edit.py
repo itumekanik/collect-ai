@@ -103,6 +103,9 @@ class YOLOAnnotationEditor:
         
         btn_class_mapping = tk.Button(self.toolbar, text="Class Mapping", command=self.edit_class_mapping)
         btn_class_mapping.pack(side=tk.LEFT, padx=2, pady=2)
+
+        btn_create_yolo = tk.Button(self.toolbar, text="Create YOLO Folder", command=self.create_yolo_folder)
+        btn_create_yolo.pack(side=tk.LEFT, padx=2, pady=2)
         
         # Image navigation toolbar
         self.nav_frame = tk.Frame(self.main_frame)
@@ -1399,6 +1402,83 @@ class YOLOAnnotationEditor:
         self.save_annotations()
         self.current_image_index = idx
         self.load_image(self.images_list[idx])
+
+
+    def create_yolo_folder(self):
+        # 2.1 Kaynak klasörü sor
+        src_dir = filedialog.askdirectory(title="Select Source Folder with images+txt")
+        if not src_dir:
+            return
+
+        # 2.2 Test için yüzde al
+        pct = simpledialog.askinteger("Test Split", "Test set percentage (0–100):", minvalue=0, maxvalue=100)
+        if pct is None:
+            return
+
+        # 2.3 Hedef kök klasörü: src_dir/analiz
+        dest_root = os.path.join(src_dir, "analiz")
+        subdirs = [
+            ("train", "images"),
+            ("train", "labels"),
+            ("test",  "images"),
+            ("test",  "labels"),
+        ]
+        for d1, d2 in subdirs:
+            os.makedirs(os.path.join(dest_root, d1, d2), exist_ok=True)
+
+        # 2.4 Dosyaları topla ve karıştır
+        # 2.4 Sadece .txt’si olan resimleri topla ve karıştır
+        exts = (".jpg", ".jpeg", ".png", ".bmp", ".tiff")
+        all_imgs = []
+        for f in os.listdir(src_dir):
+            if f.lower().endswith(exts):
+                base = os.path.splitext(f)[0]
+                txt_path = os.path.join(src_dir, base + ".txt")
+                # Sadece .txt dosyası varsa ekle
+                if os.path.exists(txt_path):
+                    all_imgs.append(f)
+
+        if not all_imgs:
+            messagebox.showwarning("No Labeled Images",
+                "No image–label pairs found. Please make sure your source folder\n"
+                "contains both images and same-named .txt files.")
+            return
+
+        np.random.shuffle(all_imgs)
+        split_idx = int(len(all_imgs) * (100 - pct) / 100)
+        splits = {
+            "train": all_imgs[:split_idx],
+            "test":  all_imgs[split_idx:]
+        }
+
+
+        # 2.5 Kopyala
+        for split, files in splits.items():
+            for img in files:
+                base = os.path.splitext(img)[0]
+                src_img = os.path.join(src_dir, img)
+                src_txt = os.path.join(src_dir, base + ".txt")
+
+                dst_img = os.path.join(dest_root, split, "images", img)
+                shutil.copy2(src_img, dst_img)
+
+                if os.path.exists(src_txt):
+                    dst_txt = os.path.join(dest_root, split, "labels", base + ".txt")
+                    shutil.copy2(src_txt, dst_txt)
+
+        # 2.6 dataset.yaml oluştur
+        yaml_path = os.path.join(dest_root, "dataset.yaml")
+        nc = len(self.class_mapping)
+        names = [self.class_mapping[k] for k in sorted(self.class_mapping.keys(), key=lambda x: int(x) if str(x).isdigit() else x)]
+        with open(yaml_path, "w") as f:
+            f.write(f"train: {os.path.join('analiz','train','images')}\n")
+            f.write(f"val:   {os.path.join('analiz','test','images')}\n")
+            f.write(f"nc: {nc}\n")
+            f.write("names:\n")
+            for i,name in enumerate(names):
+                f.write(f"  {i}: {name}\n")
+
+        messagebox.showinfo("Done", f"YOLO folders created in:\n{dest_root}")
 
 
 def main():
