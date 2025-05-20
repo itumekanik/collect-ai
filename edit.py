@@ -222,50 +222,39 @@ class YOLOAnnotationEditor:
         self.root.bind("<Escape>", lambda e: self.cancel_new_annotation())
     
     def open_folder(self):
-        """Open a folder containing images and labels"""
+        """Open a folder containing images and labels (non-recursive)."""
         folder_path = filedialog.askdirectory(title="Select Dataset Folder")
         if not folder_path:
             return
-        
-        # Look for images folder
+
+        # Görüntü klasörü
         images_folder = os.path.join(folder_path, "images")
         if not os.path.exists(images_folder):
-            # If no 'images' subfolder, assume all images are in the selected folder
             images_folder = folder_path
-        
-        # Look for labels folder
+
+        # Etiket klasörü (aynı mantıkla)
         labels_folder = os.path.join(folder_path, "labels")
         if not os.path.exists(labels_folder):
-            # If no 'labels' subfolder, assume it's in the parent directory
-            parent_dir = os.path.dirname(folder_path)
-            potential_labels_folder = os.path.join(parent_dir, "labels")
-            if os.path.exists(potential_labels_folder):
-                labels_folder = potential_labels_folder
-            else:
-                # As a last resort, assume labels are in the same folder as images
-                labels_folder = images_folder
-        
-        # Get all image files
+            labels_folder = images_folder
+
+        # ---- Burayı değiştirin: sadece tek dizindeki dosyaları al ----
         image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']
         self.images_list = []
-        
-        for root, _, files in os.walk(images_folder):
-            for file in files:
-                if any(file.lower().endswith(ext) for ext in image_extensions):
-                    self.images_list.append(os.path.join(root, file))
-        
+        for fname in os.listdir(images_folder):
+            full = os.path.join(images_folder, fname)
+            if os.path.isfile(full) and any(fname.lower().endswith(ext) for ext in image_extensions):
+                self.images_list.append(full)
+        # ----------------------------------------------------------------
+
         if not self.images_list:
             messagebox.showinfo("No Images", f"No images found in {images_folder}")
             return
-        
+
         self.images_list.sort()
         self.current_image_index = 0
-        
-        # Store the labels folder
         self.labels_folder = labels_folder
-        
-        # Load the first image
         self.load_image(self.images_list[0])
+
     
     def load_image(self, image_path):
         """Load an image and its annotations"""
