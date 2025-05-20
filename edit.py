@@ -35,6 +35,11 @@ class YOLOAnnotationEditor:
         
         # Load class mapping and configuration
         self.load_config()
+
+        self.classification_config_file = "classification_config.json"
+        self.classification_categories = {}
+        self.load_classification_config()
+
         
         # Create main layout
         self.create_layout()
@@ -106,6 +111,11 @@ class YOLOAnnotationEditor:
 
         btn_create_yolo = tk.Button(self.toolbar, text="Create YOLO Folder", command=self.create_yolo_folder)
         btn_create_yolo.pack(side=tk.LEFT, padx=2, pady=2)
+
+        btn_vit = tk.Button(self.toolbar, text="VİT Classify", command=self.open_classification_dialog)
+        btn_vit.pack(side=tk.LEFT, padx=2, pady=2)
+
+
         
         # Image navigation toolbar
         self.nav_frame = tk.Frame(self.main_frame)
@@ -1479,6 +1489,127 @@ class YOLOAnnotationEditor:
                 f.write(f"  {i}: {name}\n")
 
         messagebox.showinfo("Done", f"YOLO folders created in:\n{dest_root}")
+    
+    def load_classification_config(self):
+        """Load or initialize classification categories."""
+        if os.path.exists(self.classification_config_file):
+            try:
+                with open(self.classification_config_file, 'r') as f:
+                    self.classification_categories = json.load(f)
+            except Exception:
+                self.classification_categories = {}
+        else:
+            self.classification_categories = {}
+            self.save_classification_config()
+
+    def save_classification_config(self):
+        """Persist classification categories."""
+        try:
+            with open(self.classification_config_file, 'w') as f:
+                json.dump(self.classification_categories, f, indent=2)
+        except Exception:
+            pass
+
+    def open_classification_dialog(self):
+        """Show dialog to manage and pick categories, then classify current image."""
+        if not hasattr(self, 'current_image_path'):
+            messagebox.showwarning("No Image", "Please load an image first.")
+            return
+
+        dlg = tk.Toplevel(self.root)
+        dlg.title("VİT Classification")
+        dlg.geometry("500x300")
+        dlg.transient(self.root)
+        dlg.grab_set()
+
+        # --- Main categories list ---
+        main_frame = tk.Frame(dlg)
+        main_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        tk.Label(main_frame, text="Main Category").pack()
+        main_lb = tk.Listbox(main_frame, exportselection=0)
+        main_lb.pack(fill=tk.BOTH, expand=True)
+        for cat in sorted(self.classification_categories.keys()):
+            main_lb.insert(tk.END, cat)
+
+        add_main = tk.Button(main_frame, text="Add Main",
+                            command=lambda: self._add_main_category(main_lb))
+        add_main.pack(pady=5)
+
+        # --- Subcategories list ---
+        sub_frame = tk.Frame(dlg)
+        sub_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        tk.Label(sub_frame, text="Subcategory").pack()
+        sub_lb = tk.Listbox(sub_frame, exportselection=0)
+        sub_lb.pack(fill=tk.BOTH, expand=True)
+
+        add_sub = tk.Button(sub_frame, text="Add Sub",
+                            command=lambda: self._add_subcategory(main_lb, sub_lb))
+        add_sub.pack(pady=5)
+
+        # --- When main selection changes, update subs ---
+        def on_main_sel(evt):
+            sel = main_lb.curselection()
+            sub_lb.delete(0, tk.END)
+            if sel:
+                main = main_lb.get(sel[0])
+                for sub in self.classification_categories.get(main, []):
+                    sub_lb.insert(tk.END, sub)
+        main_lb.bind("<<ListboxSelect>>", on_main_sel)
+
+        # --- Classify button ---
+        btn_frame = tk.Frame(dlg)
+        btn_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
+        tk.Button(btn_frame, text="Classify Here",
+                command=lambda: self._classify_current_image(main_lb, sub_lb, dlg)).pack(side=tk.LEFT, padx=10)
+        tk.Button(btn_frame, text="Close", command=dlg.destroy).pack(side=tk.RIGHT, padx=10)
+
+    def _add_main_category(self, main_lb):
+        name = simpledialog.askstring("New Main Category", "Enter main category name:", parent=self.root)
+        if not name: return
+        if name not in self.classification_categories:
+            self.classification_categories[name] = []
+            main_lb.insert(tk.END, name)
+            self.save_classification_config()
+
+    def _add_subcategory(self, main_lb, sub_lb):
+        sel = main_lb.curselection()
+        if not sel:
+            messagebox.showwarning("Select Main", "Please select a main category first.")
+            return
+        main = main_lb.get(sel[0])
+        name = simpledialog.askstring("New Subcategory", f"Enter subcategory under '{main}':", parent=self.root)
+        if not name: return
+        if name not in self.classification_categories[main]:
+            self.classification_categories[main].append(name)
+            sub_lb.insert(tk.END, name)
+            self.save_classification_config()
+
+    def _classify_current_image(self, main_lb, sub_lb, dialog):
+        msel = main_lb.curselection(); ssl = sub_lb.curselection()
+        if not msel or not ssl:
+            messagebox.showwarning("Select Both", "Please select both main and subcategory.")
+            return
+        main = main_lb.get(msel[0])
+        sub  = sub_lb.get(ssl[0])
+
+        # Hedef klasör: <dataset_folder>/<main>/<sub>
+        base_dir = getattr(self, 'dataset_folder', None)
+        if not base_dir:
+            base_dir = os.path.dirname(self.current_image_path)
+        target = os.path.join(base_dir, main, sub)
+        os.makedirs(target, exist_ok=True)
+
+        # Resmi kopyala
+        dst = os.path.join(target, os.path.basename(self.current_image_path))
+        try:
+            shutil.copy2(self.current_image_path, dst)
+            messagebox.showinfo("Classified", f"Copied to {target}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Copy failed: {e}")
+        finally:
+            dialog.destroy()
+
+
 
 
 def main():
